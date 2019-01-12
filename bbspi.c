@@ -26,7 +26,7 @@ bbspi_write8(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
   char cmd[] = {reg & ~0x80, value};
   unsigned char inBuf[2]
   int count = bbSPIXfer(cs, cmd, (char *)inBuffer, 2);
-  return Py_None;
+  Py_RETURN_NONE
 }
 
 
@@ -222,6 +222,27 @@ bbspi_close(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte cs_p
     return NULL;
   }
 }
+
+
+static PyMethodDef bbspiMethods[] = {
+  "write8", bbspi_write8, METH_VARARGS | METH_KEYWORDS,
+  "read8", bbspi_read8, METH_VARARGS | METH_KEYWORDS,
+  "read16", bbspi_read16, METH_VARARGS | METH_KEYWORDS,
+  "read16_LE", bbspi_read16_LE, METH_VARARGS | METH_KEYWORDS,
+  "readS16", bbspi_readS16, METH_VARARGS | METH_KEYWORDS,
+  "readS16_LE", bbspi_readS16_LE, METH_VARARGS | METH_KEYWORDS,
+  "read24", bbspi_read24, METH_VARARGS | METH_KEYWORDS,
+  {NULL, NULL, 0, NULL}
+};
+
+
+static struct PyModuleDef bbspimodule = {
+  PyModuleDef_HEAD_INT,
+  "bbspi",
+  NULL,
+  -1
+  bbspiMethods
+};
 
 
 PyMODINIT_FUNC
