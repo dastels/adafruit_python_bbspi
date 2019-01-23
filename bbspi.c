@@ -19,14 +19,17 @@ static PyObject *
 bbspi_write8(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg, byte value
 {
   uint8_t cs, reg, value;
-  static char *keywords = {"cs", "reg", "value", NULL};
+  static char *keywords[] = {"cs", "reg", "value", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bbb", keywords, &cs, &reg, &value)) {
     return NULL;
   }
-  char cmd[] = {reg & ~0x80, value};
-  unsigned char inBuf[2]
-  int count = bbSPIXfer(cs, cmd, (char *)inBuffer, 2);
-  Py_RETURN_NONE
+  char command[] = {reg & ~0x80, value};
+  unsigned char input_buffer[2];
+  int count = bbSPIXfer(cs, command, (char *)input_buffer, 2);
+  if (count != 2) {
+    return NULL;
+  }
+  Py_RETURN_NONE;
 }
 
 
@@ -41,14 +44,17 @@ static PyObject *
 bbspi_read8(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
 {
   uint8_t cs, reg;
-  static char *keywords = {"cs", "reg", NULL};
+  static char *keywords[] = {"cs", "reg", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bb", keywords, &cs, &reg)) {
     return NULL;
   }
-  char cmd[] = {reg | 0x80, 0};
-  unsigned char inBuf[2]
-  int count = bbSPIXfer(cs, cmd, (char *)inBuffer, 2);
-  return PyLong_FromUnsignedLong((unsigned long)inBuf[1]);
+  char command[] = {reg | 0x80, 0};
+  unsigned char input_buffer[2];
+  int count = bbSPIXfer(cs, command, (char *)input_buffer, 2);
+  if (count != 2) {
+    return NULL;
+  }
+  return PyLong_FromUnsignedLong((unsigned long)input_buffer[1]);
 }
 
 
@@ -63,14 +69,17 @@ static PyObject *
 bbspi_read16(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
 {
   uint8_t cs, reg;
-  static char *keywords = {"cs", "reg", NULL};
+  static char *keywords[] = {"cs", "reg", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bb", keywords, &cs, &reg)) {
     return NULL;
   }
-  char cmd[] = {reg | 0x80, 0, 0};
-  unsigned char inBuf[3]
-  int count = bbSPIXfer(cs, cmd, (char *)inBuffer, 3);
-  return PyLong_FromUnsignedLong((unsigned long)((inBuf[1] << 8) | inBuf[2]));
+  char command[] = {reg | 0x80, 0, 0};
+  unsigned char input_buffer[3];
+  int count = bbSPIXfer(cs, command, (char *)input_buffer, 3);
+  if (count != 3) {
+    return NULL;
+  }
+  return PyLong_FromUnsignedLong((unsigned long)((input_buffer[1] << 8) | input_buffer[2]));
 }
 
 
@@ -85,14 +94,17 @@ static PyObject *
 bbspi_read16_LE(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
 {
   uint8_t cs, reg;
-  static char *keywords = {"cs", "reg", NULL};
+  static char *keywords[] = {"cs", "reg", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bb", keywords, &cs, &reg)) {
     return NULL;
   }
-  char cmd[] = {reg | 0x80, 0, 0};
-  unsigned char inBuf[3]
-  int count = bbSPIXfer(SPI_CS, cmd, (char *)inBuffer, 3);
-  return PyLong_FromUnsignedLong((unsigned long)((inBuf[2] << 8) | inBuf[1]));
+  char command[] = {reg | 0x80, 0, 0};
+  unsigned char input_buffer[3];
+  int count = bbSPIXfer(SPI_CS, command, (char *)input_buffer, 3);
+  if (count != 3) {
+    return NULL;
+  }
+  return PyLong_FromUnsignedLong((unsigned long)((input_buffer[2] << 8) | input_buffer[1]));
 }
 
 
@@ -107,15 +119,18 @@ static PyObject *
 bbspi_readS16(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
 {
   uint8_t cs, reg;
-  static char *keywords = {"cs", "reg", NULL};
+  static char *keywords[] = {"cs", "reg", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bb", keywords, &cs, &reg)) {
     return NULL;
   }
 
-  char cmd[] = {reg | 0x80, 0, 0};
-  unsigned char inBuf[3]
-  int count = bbSPIXfer(SPI_CS, cmd, (char *)inBuffer, 3);
-  return PyLong_FromLong((long)((inBuf[1] << 8) | inBuf[2]));
+  char command[] = {reg | 0x80, 0, 0};
+  unsigned char input_buffer[3];
+  int count = bbSPIXfer(SPI_CS, command, (char *)input_buffer, 3);
+  if (count != 3) {
+    return NULL;
+  }
+  return PyLong_FromLong((long)((input_buffer[1] << 8) | input_buffer[2]));
 }
 
 
@@ -130,15 +145,18 @@ static PyObject *
 bbspi_readS16_LE(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
 {
   uint8_t cs, reg;
-  static char *keywords = {"cs", "reg", NULL};
+  static char *keywords[] = {"cs", "reg", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bb", keywords, &cs, &reg)) {
     return NULL;
   }
 
-  char cmd[] = {reg | 0x80, 0, 0};
-  unsigned char inBuf[3]
-  int count = bbSPIXfer(SPI_CS, cmd, (char *)inBuffer, 3);
-  return PyLong_FromLong((long)((inBuf[2] << 8) | inBuf[1]));
+  char command[] = {reg | 0x80, 0, 0};
+  unsigned char input_buffer[3];
+  int count = bbSPIXfer(SPI_CS, command, (char *)input_buffer, 3);
+  if (count != 3) {
+    return NULL;
+  }
+  return PyLong_FromLong((long)((input_buffer[2] << 8) | input_buffer[1]));
 }
 
 
@@ -154,19 +172,22 @@ static PyObject *
 bbspi_read24(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte reg
 {
   uint8_t cs, reg;
-  static char *keywords = {"cs", "reg", NULL};
+  static char *keywords[] = {"cs", "reg", NULL};
   if (!PyArg_ParseTupleAndKeywords(args, keyword_dict, "bb", keywords, &cs, &reg)) {
     return NULL;
   }
 
-  char cmd[] = {reg | 0x80, 0, 0, 0};
-  unsigned char inBuf[4]
-  int count = bbSPIXfer(SPI_CS, cmd, (char *)inBuffer, 4);
-  uint32_t value = inBuf[1];
+  char command[] = {reg | 0x80, 0, 0, 0};
+  unsigned char input_buffer[4];
+  int count = bbSPIXfer(SPI_CS, command, (char *)input_buffer, 4);
+  if (count != 4) {
+    return NULL;
+  }
+  uint32_t value = input_buffer[1];
   value <<= 8;
-  value |= inBuf[2];
+  value |= input_buffer[2];
   value <<= 8;
-  value |= inBuf[3];
+  value |= input_buffer[3];
   return PyLong_FromUnsignedLong((unsigned long)value);
 }
 
@@ -197,6 +218,7 @@ bbspi_open(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte cs_pi
     }
     return NULL;
   }
+  Py_RETURN_NONE;
 }
 
 
@@ -221,27 +243,30 @@ bbspi_close(PyObject *self, PyObject *args, PyObject *keyword_dict)  //byte cs_p
     }
     return NULL;
   }
+  Py_RETURN_NONE;
 }
 
 
-static PyMethodDef bbspiMethods[] = {
-  "write8", bbspi_write8, METH_VARARGS | METH_KEYWORDS,
-  "read8", bbspi_read8, METH_VARARGS | METH_KEYWORDS,
-  "read16", bbspi_read16, METH_VARARGS | METH_KEYWORDS,
-  "read16_LE", bbspi_read16_LE, METH_VARARGS | METH_KEYWORDS,
-  "readS16", bbspi_readS16, METH_VARARGS | METH_KEYWORDS,
-  "readS16_LE", bbspi_readS16_LE, METH_VARARGS | METH_KEYWORDS,
-  "read24", bbspi_read24, METH_VARARGS | METH_KEYWORDS,
+static PyMethodDef bbspi_methods[] = {
+  {"write8", (PyCFunction)bbspi_write8, METH_VARARGS | METH_KEYWORDS, "Write an unsigned 8-bit value."},
+  {"read8", (PyCFunction)bbspi_read8, METH_VARARGS | METH_KEYWORDS, "Read an unsigned 8-bit value."},
+  {"read16", (PyCFunction)bbspi_read16, METH_VARARGS | METH_KEYWORDS, "Read an unsigned 16-bit value."},
+  {"read16_LE", (PyCFunction)bbspi_read16_LE, METH_VARARGS | METH_KEYWORDS, "Read an unsigned 16-bit value, little endian."},
+  {"readS16", (PyCFunction)bbspi_readS16, METH_VARARGS | METH_KEYWORDS, "Read a signed 16-bit value."},
+  {"readS16_LE", (PyCFunction)bbspi_readS16_LE, METH_VARARGS | METH_KEYWORDS, "Read a signed 16-bit value, little endian."},
+  {"read24", (PyCFunction)bbspi_read24, METH_VARARGS | METH_KEYWORDS, "Read an unsigned 24-bit value."},
+  {"open", (PyCFunction)bbspi_open, METH_VARARGS | METH_KEYWORDS, "Open a bitbanged SPI interface."},
+  {"close", (PyCFunction)bbspi_close, METH_VARARGS | METH_KEYWORDS, "Close a bitbanged SPI interface."},
   {NULL, NULL, 0, NULL}
 };
 
 
-static struct PyModuleDef bbspimodule = {
-  PyModuleDef_HEAD_INT,
+static struct PyModuleDef bbspi_module = {
+  PyModuleDef_HEAD_INIT,
   "bbspi",
   NULL,
-  -1
-  bbspiMethods
+  -1,
+  bbspi_methods
 };
 
 
@@ -250,7 +275,7 @@ PyInit_bbspi(void)
 {
   PyObject *m;
 
-  m = PyModule_Create(&bbspimodule);
+  m = PyModule_Create(&bbspi_module);
   if (m == NULL) {
     return NULL;
   }
