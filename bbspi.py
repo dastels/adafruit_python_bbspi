@@ -42,6 +42,8 @@ class BBSpi(object):
                           or second (1). Rising or falling depends on clock polarity.
         :param int bits: the number of bits per word
         """
+        if polarity != phase:
+            raise RuntimeError('Only SPI modes 0 and 3 are supported')
         self._baudrate = baudrate
         self._polarity = polarity
         self._phase = phase
