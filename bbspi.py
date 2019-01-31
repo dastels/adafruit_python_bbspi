@@ -46,8 +46,8 @@ class BBSpi(object):
         self._polarity = polarity
         self._phase = phase
         self._bits = bits
-        self._spi_sclk_low_time = max([0.000005, (1 / baudrate) / 2])
-        self._spi_sclk_high_time = self._spi_sclk_low_time
+        self._spi_sclk_time = max([0.000005, (1 / baudrate) / 2])
+        self._clock_pin.value = (polarity == 1)
 
     @property
     def clock_time(self):
@@ -65,6 +65,13 @@ class BBSpi(object):
         """Releases the SPI lock."""
         pass
 
+    def _leading_edge(self):
+        self._clock_pin.value = (self._polarity == 0)
+
+
+    def _trailing_edge(self):
+        self._clock_pin.value = (self._polarity == 1)
+
 
     def _transfer_byte(self, tx_byte):
 #        print('----------')
@@ -73,15 +80,21 @@ class BBSpi(object):
         bit = 0x80
         for _ in range(0,8):
 #            print(' bit {0:08b}'.format(bit))
+            if self._phase == 1:
+                self._leading_edge()
             self._mosi_pin.value = (tx_byte & bit) != 0
 #            print('   sending {0}'.format((tx_byte & bit) != 0))
-            time.sleep(self._spi_sclk_low_time)
-            self._clock_pin.value = True
+            time.sleep(self._spi_sclk_time)
+            if self._phase == 0:
+                self._leading_edge()
+            if self._phase == 1:
+                time.sleep(self._spi_sclk_time)
             if self._miso_pin.value:
                 rx_byte |= bit
+            if self._phase == 0:
+                time.sleep(self._spi_sclk_time)
 #            print('   received {0}'.format(self._miso_pin.value))
-            time.sleep(self._spi_sclk_high_time)
-            self._clock_pin.value = False
+            self._trailing_edge()
             bit >>= 1
 #        print('Received byte %s' % (hex(rx_byte)))
         return rx_byte
@@ -172,6 +185,7 @@ class SPIDevice(object):
         :param BBSpi spi: The bit banged spi bus object
         :param digitalio.DigitalInOut cs: The chip select pin for this device
         """
+        print('SPI mode: {0:1d}{1:1d}'.format(polarity, phase))
         self._spi = spi
         self._cs = digitalio.DigitalInOut(cs)
         self._cs.direction = digitalio.Direction.OUTPUT

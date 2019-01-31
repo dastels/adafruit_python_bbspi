@@ -41,7 +41,8 @@ class BME280(object):
     def __init__(self, spi, cs, baudrate=100000):
         """Check the BME280 was found, read the coefficients and enable the sensor for continuous
            reads"""
-        self._spi = bbspi.SPIDevice(spi, cs, baudrate=baudrate)
+        self._spi = bbspi.SPIDevice(spi, cs, baudrate=baudrate, polarity = 0, phase = 0)
+        # self._spi = bbspi.SPIDevice(spi, cs, baudrate=baudrate, polarity = 1, phase = 1)
         # Check device ID.
         chip_id = self._read_byte(_BME280_REGISTER_CHIPID)
         if _BME280_CHIPID != chip_id:
