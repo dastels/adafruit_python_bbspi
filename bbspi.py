@@ -1,3 +1,4 @@
+import time
 import digitalio
 
 class BBSpi(object):
@@ -5,13 +6,28 @@ class BBSpi(object):
     def __init__(self, clock=None, MOSI=None, MISO=None):
         if clock is None or MOSI is None or MISO is None:
             return None
+
+#        print('SCLK: {0}'.format(clock))
         self._clock_pin = digitalio.DigitalInOut(clock)
         self._clock_pin.direction = digitalio.Direction.OUTPUT
+        self._clock_pin.value = False
+
+#        print('MOSI: {0}'.format(MOSI))
         self._mosi_pin = digitalio.DigitalInOut(MOSI)
         self._mosi_pin.direction = digitalio.Direction.OUTPUT
+        self._mosi_pin.value = False
+
+#        print('MISO: {0}'.format(MISO))
         self._miso_pin = digitalio.DigitalInOut(MISO)
         self._miso_pin.direction = digitalio.Direction.INPUT
-        self._miso_pin.pull = digitalio.Pull.UP
+        # self._miso_pin.pull = digitalio.Pull.UP
+
+        self._baudrate = 0
+        self._polarity = 0
+        self._phase = 0
+        self._bits = 0
+        self._spi_sclk_low_time = 0.0
+
         self.configure()
 
 
@@ -30,14 +46,19 @@ class BBSpi(object):
         self._polarity = polarity
         self._phase = phase
         self._bits = bits
+        self._spi_sclk_low_time = max([0.000005, (1 / baudrate) / 2])
+        self._spi_sclk_high_time = self._spi_sclk_low_time
 
+    @property
+    def clock_time(self):
+        return self._spi_sclk_low_time
 
     def try_lock(self):
         """Attempts to grab the SPI lock. Returns True on success.
 
         :return: True when lock has been grabbed
         """
-        pass
+        return True
 
 
     def unlock(self):
@@ -45,29 +66,48 @@ class BBSpi(object):
         pass
 
 
-    def _transfer_byte(tx_byte):
+    def _transfer_byte(self, tx_byte):
+#        print('----------')
+#        print('Sending %s' % (hex(tx_byte)))
         rx_byte = 0
         bit = 0x80
         for _ in range(0,8):
+#            print(' bit {0:08b}'.format(bit))
             self._mosi_pin.value = (tx_byte & bit) != 0
-            time.sleep(SPI_SCLK_LOW_TIME)
+#            print('   sending {0}'.format((tx_byte & bit) != 0))
+            time.sleep(self._spi_sclk_low_time)
             self._clock_pin.value = True
             if self._miso_pin.value:
                 rx_byte |= bit
-            time.sleep(SPI_SCLK_HIGH_TIME)
+#            print('   received {0}'.format(self._miso_pin.value))
+            time.sleep(self._spi_sclk_high_time)
             self._clock_pin.value = False
             bit >>= 1
+#        print('Received byte %s' % (hex(rx_byte)))
         return rx_byte
 
 
-    def _transfer(self, buffer_out, buffer_in, out_start=0, out_end=len(buffer_out), in_start=0, in_end=len(buffer_in):
+    def _transfer(self, buffer_out, buffer_in, out_start=0, out_end=None, in_start=0, in_end=None):
+        if out_end is None:
+            out_end = len(buffer_out)
+        if in_end is None:
+            in_end = len(buffer_in)
+        if out_start < 0 or out_end < 0 or out_end < out_start:
+            return False
+        if in_start < 0 or in_end < 0 or in_end < in_start:
+            return False
+        if (out_end - out_start) != (in_end - in_start):
+            return False
+
         out_index = out_start
         in_index = in_start
-        for _ = range(start, end):
+        for _ in range(in_start, in_end):
             buffer_in[in_index] = self._transfer_byte(buffer_out[out_index])
+            in_index += 1
+            out_index += 1
+        return True
 
-
-    def write(self, buffer, start=0, end=len(buffer)):
+    def write(self, buffer, start=0, end=None):
         """Write the data contained in ``buffer``. The SPI object must be locked.
         If the buffer is empty, nothing happens.
 
@@ -75,11 +115,14 @@ class BBSpi(object):
         :param int start: Start of the slice of ``buffer`` to write out: ``buffer[start:end]``
         :param int end: End of the slice; this index is not included
         """
-        dummy_buffer = [0] * (end - start)
-        self._transfer(buffer, dummy_buffer, start, end)
+        if buffer:
+            if end is None:
+                end = len(buffer)
+            dummy_buffer = bytearray(end - start)
+            return self._transfer(buffer, dummy_buffer, start, end)
 
 
-    def readinto(self, buffer, start=0, end=len(buffer), write_value=0):
+    def readinto(self, buffer, start=0, end=None, write_value=0):
         """Read into ``buffer`` while writing ``write_value`` for each byte read.
         The SPI object must be locked.
         If the number of bytes to read is 0, nothing happens.
@@ -89,11 +132,15 @@ class BBSpi(object):
         :param int end: End of the slice; this index is not included
         :param int write_value: Value to write while reading. (Usually ignored.)
         """
-        dummy_buffer = [write_value] * (end - start)
-        self._transfer(dummy_buffer, buffer, start, end)
+        if end is None:
+            end = len(buffer)
+        if start < 0 or end < 0 or end < start:
+            return False
+        dummy_buffer = bytes([write_value] * (end - start))
+        return self._transfer(dummy_buffer, buffer, 0, len(dummy_buffer), start, end)
 
 
-    def write_readinto(self, buffer_out, buffer_in, out_start=0, out_end=len(buffer_out), in_start=0, in_end=len(buffer_in)):
+    def write_readinto(self, buffer_out, buffer_in, out_start=0, out_end=None, in_start=0, in_end=None):
         """Write out the data in ``buffer_out`` while simultaneously reading data into ``buffer_in``.
         The SPI object must be locked.
         The lengths of the slices defined by ``buffer_out[out_start:out_end]`` and ``buffer_in[in_start:in_end]``
@@ -107,7 +154,7 @@ class BBSpi(object):
         :param int in_start: Start of the slice of ``buffer_in`` to read into: ``buffer_in[in_start:in_end]``
         :param int in_end: End of the slice; this index is not included
         """
-        self._transfer(buffer_out, buffer_in, out_start, out_end, in_start, in_end)
+        return self._transfer(buffer_out, buffer_in, out_start, out_end, in_start, in_end)
 
 
     @property
@@ -115,7 +162,7 @@ class BBSpi(object):
         """The actual SPI bus frequency. This may not match the frequency requested
            due to internal limitations.
         """
-        pass
+        return 1 / self._spi_sclk_low_time
 
 
 class SPIDevice(object):
@@ -126,11 +173,13 @@ class SPIDevice(object):
         :param digitalio.DigitalInOut cs: The chip select pin for this device
         """
         self._spi = spi
-        self._cs = cs
+        self._cs = digitalio.DigitalInOut(cs)
+        self._cs.direction = digitalio.Direction.OUTPUT
+        self._cs.value = True
         spi.configure(baudrate=baudrate, polarity=polarity, phase=phase)
 
 
-    def write(self, buffer, start=0, end=len(buffer)):
+    def write(self, buffer, start=0, end=None):
         """Write the data contained in ``buffer``. The SPI object must be locked.
         If the buffer is empty, nothing happens.
 
@@ -138,12 +187,14 @@ class SPIDevice(object):
         :param int start: Start of the slice of ``buffer`` to write out: ``buffer[start:end]``
         :param int end: End of the slice; this index is not included
         """
-        # enable CS
+        self._cs.value = False
+        time.sleep(self._spi.clock_time)
         self._spi.write(buffer, start=start, end=end)
-        #disable CS
+        time.sleep(self._spi.clock_time)
+        self._cs.value = True
 
 
-    def readinto(self, buffer, start=0, end=len(buffer), write_value=0):
+    def readinto(self, buffer, start=0, end=None, write_value=0):
         """Read into ``buffer`` while writing ``write_value`` for each byte read.
         The SPI object must be locked.
         If the number of bytes to read is 0, nothing happens.
@@ -153,12 +204,14 @@ class SPIDevice(object):
         :param int end: End of the slice; this index is not included
         :param int write_value: Value to write while reading. (Usually ignored.)
         """
-        # enable CS
-        self._spi.writreadinto(buffer, start=start, end=end, write_value=write_value)
-        #disable CS
+        self._cs.value = False
+        time.sleep(self._spi.clock_time)
+        self._spi.readinto(buffer, start=start, end=end, write_value=write_value)
+        time.sleep(self._spi.clock_time)
+        self._cs.value = True
 
 
-    def write_readinto(self, buffer_out, buffer_in, out_start=0, out_end=len(buffer_out), in_start=0, in_end=len(buffer_in)):
+    def write_readinto(self, buffer_out, buffer_in, out_start=0, out_end=None, in_start=0, in_end=None):
         """Write out the data in ``buffer_out`` while simultaneously reading data into ``buffer_in``.
         The SPI object must be locked.
         The lengths of the slices defined by ``buffer_out[out_start:out_end]`` and ``buffer_in[in_start:in_end]``
@@ -172,6 +225,8 @@ class SPIDevice(object):
         :param int in_start: Start of the slice of ``buffer_in`` to read into: ``buffer_in[in_start:in_end]``
         :param int in_end: End of the slice; this index is not included
         """
-        # enable CS
+        self._cs.value = False
+        time.sleep(self._spi.clock_time)
         self._spi.write_readinto(buffer_out, buffer_in, out_start=out_start, out_end=out_end, in_start=in_start, in_end=in_end)
-        #disable CS
+        time.sleep(self._spi.clock_time)
+        self._cs.value = True
