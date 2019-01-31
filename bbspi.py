@@ -44,6 +44,8 @@ class BBSpi(object):
         """
         if polarity != phase:
             raise RuntimeError('Only SPI modes 0 and 3 are supported')
+        if bits != 8:
+            raise RuntimeError('Only 8-bit words are supported')
         self._baudrate = baudrate
         self._polarity = polarity
         self._phase = phase
